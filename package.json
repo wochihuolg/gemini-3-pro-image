@@ -1,0 +1,65 @@
+﻿{
+    "scripts":  {
+                    "build:installer":  "electron-builder --win nsis",
+                    "build":  "electron-builder --win portable",
+                    "build:all":  "electron-builder --win portable --win nsis",
+                    "start":  "electron ."
+                },
+    "description":  "Gemini-3-Pro-Image 生图桌面工具 - 基于 APIMart API",
+    "version":  "1.0.0",
+    "author":  "wochihuolg",
+    "name":  "gemini-3-pro-image",
+    "main":  "main.js",
+    "devDependencies":  {
+                            "electron":  "^33.0.0",
+                            "electron-builder":  "^25.0.0"
+                        },
+    "license":  "MIT",
+    "build":  {
+                  "appId":  "com.gemini3pro.image",
+                  "extraResources":  [
+                                         {
+                                             "filter":  [
+                                                            "**/*"
+                                                        ],
+                                             "from":  "src",
+                                             "to":  "src"
+                                         }
+                                     ],
+                  "asar":  true,
+                  "nsis":  {
+                               "uninstallDisplayName":  "Gemini-3-Pro-Image 生图工具",
+                               "createDesktopShortcut":  true,
+                               "shortcutName":  "Gemini-3-Pro-Image",
+                               "oneClick":  false,
+                               "allowToChangeInstallationDirectory":  true,
+                               "installerIcon":  "src/assets/icon.png"
+                           },
+                  "compression":  "maximum",
+                  "directories":  {
+                                      "output":  "release"
+                                  },
+                  "portable":  {
+                                   "requestExecutionLevel":  "user",
+                                   "artifactName":  "Gemini-3-Pro-Image-\\-portable.\\"
+                               },
+                  "win":  {
+                              "target":  [
+                                             {
+                                                 "target":  "portable",
+                                                 "arch":  [
+                                                              "x64"
+                                                          ]
+                                             },
+                                             {
+                                                 "target":  "nsis",
+                                                 "arch":  [
+                                                              "x64"
+                                                          ]
+                                             }
+                                         ],
+                              "icon":  "src/assets/icon.png"
+                          },
+                  "productName":  "Gemini-3-Pro-Image 生图工具"
+              }
+}

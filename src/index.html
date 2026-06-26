@@ -1,0 +1,596 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; connect-src https://api.apimart.ai https://api.imgbb.com;">
+<title>Gemini-3-Pro-Image 生图工具</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d29; --border: #2a2e3e;
+    --text: #e4e6f0; --text-dim: #888ba0;
+    --accent: #7c5cfc; --accent-hover: #9577ff;
+    --accent-glow: rgba(124,92,252,0.3);
+    --green: #34d399; --red: #f87171;
+    --radius: 12px; --radius-sm: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex; justify-content: center; padding: 24px 20px;
+  }
+  .container { max-width: 820px; width: 100%; }
+  .header { text-align: center; margin-bottom: 24px; user-select: none; }
+  .header h1 {
+    font-size: 26px; font-weight: 700;
+    background: linear-gradient(135deg, #7c5cfc, #a78bfa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    letter-spacing: 1px;
+  }
+  .header p { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
+  .header .version { color: #555; font-size: 11px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 22px; margin-bottom: 14px;
+    transition: border-color 0.2s;
+  }
+  .card:focus-within { border-color: var(--accent); }
+  .card-title {
+    font-size: 13px; font-weight: 600; color: var(--text-dim);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+    user-select: none;
+  }
+  .card-title .badge {
+    background: var(--accent); color: #fff; font-size: 10px;
+    padding: 1px 8px; border-radius: 10px; margin-left: 4px;
+  }
+  textarea {
+    width: 100%; padding: 10px 12px; background: var(--bg);
+    border: 1px solid transparent; border-radius: var(--radius-sm);
+    color: var(--text); font-size: 14px; outline: none;
+    resize: vertical; min-height: 88px;
+    font-family: inherit; line-height: 1.6;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  textarea::placeholder { color: #555; }
+
+  select {
+    width: 100%; padding: 9px 30px 9px 12px; background: var(--bg);
+    border: 1px solid transparent; border-radius: var(--radius-sm);
+    color: var(--text); font-size: 13px; outline: none;
+    cursor: pointer; appearance: none; transition: border-color 0.2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+  }
+  select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  select option { background: var(--card); color: var(--text); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 22px; border-radius: var(--radius-sm); border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: all 0.15s; user-select: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: linear-gradient(135deg, #7c5cfc, #6a4ce8);
+    color: #fff; width: 100%; padding: 13px; font-size: 15px;
+  }
+  .btn-primary:hover { background: linear-gradient(135deg, #8d6dff, #7c5cfc); }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  .btn-secondary {
+    background: var(--border); color: var(--text); flex: 1;
+  }
+  .btn-secondary:hover { background: #3a3f55; }
+  .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .param-row { display: flex; gap: 12px; }
+  .param-group { flex: 1; }
+  .param-group label {
+    display: block; font-size: 11px; color: var(--text-dim);
+    margin-bottom: 4px; font-weight: 500; user-select: none;
+  }
+
+  /* Tabs */
+  .tab-bar { display: flex; margin-bottom: 10px; border-bottom: 1px solid var(--border); gap: 0; }
+  .tab-btn {
+    padding: 7px 14px; font-size: 12px; background: none; border: none;
+    color: var(--text-dim); cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+    font-family: inherit;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn:hover { color: var(--text); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius-sm);
+    padding: 18px; text-align: center; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .upload-zone:hover { border-color: var(--accent); background: rgba(124,92,252,0.05); }
+  .upload-zone.has-image { border-color: var(--accent); padding: 10px; }
+  .upload-zone input[type="file"] { display: none; }
+  .upload-placeholder { color: var(--text-dim); font-size: 12px; }
+  .upload-placeholder .icon { font-size: 24px; display: block; margin-bottom: 4px; }
+  .upload-preview { display: flex; align-items: center; gap: 12px; }
+  .upload-preview img {
+    width: 56px; height: 56px; object-fit: cover;
+    border-radius: 6px; border: 1px solid var(--border);
+  }
+  .upload-preview .info { flex: 1; text-align: left; }
+  .upload-preview .info .name { font-size: 13px; }
+  .upload-preview .info .size { font-size: 11px; color: var(--text-dim); }
+  .upload-preview .remove-btn {
+    background: none; border: none; color: var(--red);
+    cursor: pointer; font-size: 18px; padding: 4px; line-height: 1;
+  }
+  .upload-preview .remove-btn:hover { opacity: 0.7; }
+
+  /* URL input */
+  .ref-url-row { display: flex; gap: 8px; }
+  .ref-url-row input {
+    flex: 1; padding: 9px 12px; background: var(--bg);
+    border: 1px solid transparent; border-radius: var(--radius-sm);
+    color: var(--text); font-size: 13px; outline: none; transition: border-color 0.2s;
+  }
+  .ref-url-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .ref-url-row input::placeholder { color: #555; }
+
+  /* Progress */
+  .progress-area { display: none; margin-top: 10px; }
+  .progress-area.active { display: block; }
+  .progress-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px;
+  }
+  .progress-text { font-size: 13px; color: var(--text-dim); display: flex; justify-content: space-between; }
+  .progress-bar-bg { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--green));
+    border-radius: 2px; width: 0%; transition: width 0.4s ease;
+  }
+
+  /* Result */
+  .result-area { display: none; margin-top: 4px; }
+  .result-area.active { display: block; }
+  .result-image { width: 100%; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); background: var(--bg); }
+  .result-image img { width: 100%; display: block; }
+  .result-actions { display: flex; gap: 10px; margin-top: 12px; }
+  .result-actions .btn { flex: 1; }
+  .cost-info {
+    display: flex; gap: 16px; font-size: 12px; color: var(--text-dim);
+    margin-top: 8px; padding: 8px 12px; background: var(--bg);
+    border-radius: var(--radius-sm);
+  }
+
+  /* Error */
+  .error-msg {
+    display: none; margin-top: 8px;
+    padding: 10px 14px; background: rgba(248,113,113,0.08);
+    border: 1px solid rgba(248,113,113,0.25);
+    border-radius: var(--radius-sm); color: var(--red); font-size: 13px;
+  }
+  .error-msg.active { display: block; }
+
+  /* Drag region for frameless window (if needed) */
+  .drag-region { -webkit-app-region: drag; }
+  .no-drag { -webkit-app-region: no-drag; }
+
+  @media (max-width: 600px) {
+    body { padding: 14px 12px; }
+    .card { padding: 14px 16px; }
+    .param-row { flex-direction: column; }
+    .result-actions { flex-wrap: wrap; }
+    .result-actions .btn { min-width: 120px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header drag-region">
+    <h1>✦ Gemini-3-Pro-Image</h1>
+    <p>APIMart 生图桌面工具 · 自定义提示词 · 参考图 · 下载 · 重新生成</p>
+    <span class="version">v1.0.0</span>
+  </div>
+
+  <!-- Prompt -->
+  <div class="card">
+    <div class="card-title">📝 提示词</div>
+    <textarea id="prompt" placeholder="描述你想要生成的图片内容...
+
+例如：一只橘猫在阳光下打盹，水彩风格，温暖色调"></textarea>
+  </div>
+
+  <!-- Reference Image -->
+  <div class="card">
+    <div class="card-title">🖼 参考图 <span class="badge">可选</span></div>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('upload')" id="tab-upload">📁 本地上传</button>
+      <button class="tab-btn" onclick="switchTab('url')" id="tab-url">🔗 图片 URL</button>
+    </div>
+    <div class="tab-content active" id="tab-content-upload">
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+        <div class="upload-placeholder" id="uploadPlaceholder">
+          <span class="icon">📎</span>
+          点击上传参考图片（base64 内嵌，无需外部服务）
+        </div>
+        <div class="upload-preview" id="uploadPreview" style="display:none">
+          <img id="previewImg" src="" alt="preview">
+          <div class="info">
+            <div class="name" id="fileName">image.jpg</div>
+            <div class="size" id="fileSize">0 KB</div>
+          </div>
+          <button class="remove-btn" onclick="removeFile(event)">✕</button>
+        </div>
+      </div>
+    </div>
+    <div class="tab-content" id="tab-content-url">
+      <div class="ref-url-row">
+        <input type="url" id="refUrl" placeholder="https://example.com/photo.jpg" spellcheck="false">
+      </div>
+    </div>
+  </div>
+
+  <!-- Parameters -->
+  <div class="card">
+    <div class="card-title">⚙️ 生成参数</div>
+    <div class="param-row">
+      <div class="param-group">
+        <label>图片比例</label>
+        <select id="imageSize">
+          <option value="1:1" selected>1:1 正方形</option>
+          <option value="16:9">16:9 横屏</option>
+          <option value="9:16">9:16 竖屏</option>
+          <option value="4:3">4:3</option>
+          <option value="3:4">3:4</option>
+          <option value="3:2">3:2</option>
+          <option value="2:3">2:3</option>
+          <option value="auto">auto 自动</option>
+        </select>
+      </div>
+      <div class="param-group">
+        <label>分辨率</label>
+        <select id="resolution">
+          <option value="1K">1K 基础</option>
+          <option value="2K" selected>2K 推荐</option>
+          <option value="4K">4K 高清</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate -->
+  <button class="btn btn-primary" onclick="generate()" id="genBtn">🎨 生成图片</button>
+
+  <!-- Progress -->
+  <div class="progress-area" id="progressArea">
+    <div class="progress-card">
+      <div class="progress-text">
+        <span id="progressLabel">提交任务中...</span>
+        <span id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- Result -->
+  <div class="result-area" id="resultArea">
+    <div class="card">
+      <div class="card-title">🖼 生成结果</div>
+      <div class="result-image"><img id="resultImg" src="" alt="生成的图片"></div>
+      <div class="cost-info">
+        <span>💰 费用: <strong id="costValue">--</strong></span>
+        <span>⏱ 耗时: <strong id="timeValue">--</strong></span>
+      </div>
+      <div class="result-actions">
+        <button class="btn btn-secondary" onclick="downloadImage()" id="downloadBtn">💾 下载</button>
+        <button class="btn btn-secondary" onclick="saveImageAs()" id="saveAsBtn">📂 另存为...</button>
+        <button class="btn btn-primary" onclick="regenerate()" id="regenBtn">🔄 重新生成</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  Gemini-3-Pro-Image 生图工具 — Renderer
+// ══════════════════════════════════════════
+
+// ── State ──
+let currentImageUrl = null;
+let currentImageBlob = null;
+let uploadedBase64 = null;
+let isGenerating = false;
+let costData = null;
+
+// ── Tab Switching ──
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('tab-content-' + tab).classList.add('active');
+}
+
+// ── File Upload ──
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    uploadedBase64 = ev.target.result;
+    document.getElementById('uploadPlaceholder').style.display = 'none';
+    document.getElementById('uploadPreview').style.display = 'flex';
+    document.getElementById('previewImg').src = uploadedBase64;
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileSize').textContent = formatSize(file.size);
+    document.getElementById('uploadZone').classList.add('has-image');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeFile(e) {
+  e.stopPropagation();
+  uploadedBase64 = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('uploadPlaceholder').style.display = 'block';
+  document.getElementById('uploadPreview').style.display = 'none';
+  document.getElementById('uploadZone').classList.remove('has-image');
+}
+
+function formatSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+
+function getRefImageData() {
+  const url = document.getElementById('refUrl').value.trim();
+  return url || uploadedBase64;
+}
+
+// ── API Key (session-only) ──
+function getApiKey() {
+  let key = sessionStorage.getItem('_apimart_api_key');
+  if (key) return key;
+  key = prompt('请输入你的 APIMart API Key：\n（仅本次会话有效，关闭页面后自动清除）');
+  if (!key || !(key = key.trim())) return null;
+  sessionStorage.setItem('_apimart_api_key', key);
+  return key;
+}
+
+// ── APIMart API ──
+async function submitImageTask(apiKey, prompt, size, resolution, refData) {
+  const body = { model: 'gemini-3-pro-image-preview', prompt, size, resolution, n: 1 };
+  if (refData) body.image_urls = [refData];
+
+  const resp = await fetch('https://api.apimart.ai/v1/images/generations', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    if (resp.status === 401) sessionStorage.removeItem('_apimart_api_key');
+    let msg; try { const j = await resp.json(); msg = j.error?.message || j.message; } catch { msg = await resp.text(); }
+    throw new Error('提交失败 (' + resp.status + '): ' + (msg || resp.statusText));
+  }
+  const data = await resp.json();
+  const raw = data.data;
+  const taskId = Array.isArray(raw) ? raw[0]?.task_id : raw?.task_id;
+  if (!taskId) throw new Error('无法从响应获取 task_id');
+  return taskId;
+}
+
+async function pollTask(apiKey, taskId, onProgress) {
+  for (let i = 0; i < 120; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    const resp = await fetch('https://api.apimart.ai/v1/tasks/' + taskId, {
+      headers: { 'Authorization': 'Bearer ' + apiKey },
+    });
+    if (!resp.ok) throw new Error('查询任务失败: ' + await resp.text());
+    const d = (await resp.json()).data || {};
+    const status = d.status || '';
+    onProgress(status, d.progress || 0);
+    if (status === 'completed') {
+      const url = d.result?.images?.[0]?.url?.[0];
+      if (!url) throw new Error('任务完成但未找到图片 URL');
+      costData = { cost: d.cost, actual_time: d.actual_time };
+      return url;
+    }
+    if (status === 'failed') throw new Error('任务失败: ' + (d.error || d.message || '未知错误'));
+    if (status === 'cancelled') throw new Error('任务已取消');
+  }
+  throw new Error('任务超时（超过 6 分钟）');
+}
+
+// ── Generate ──
+async function generate() {
+  if (isGenerating) return;
+
+  const apiKey = getApiKey();
+  if (!apiKey) return;
+
+  const prompt = document.getElementById('prompt').value.trim();
+  if (!prompt) { showError('请输入图片提示词'); return; }
+
+  isGenerating = true;
+  const btns = ['genBtn', 'regenBtn', 'downloadBtn', 'saveAsBtn'];
+  btns.forEach(id => document.getElementById(id).disabled = true);
+  document.getElementById('genBtn').textContent = '⏳ 生成中...';
+  hideError(); hideResult();
+
+  const size = document.getElementById('imageSize').value;
+  const resolution = document.getElementById('resolution').value;
+
+  showProgress('准备中...', 5);
+  try {
+    const refData = getRefImageData();
+    updateProgress('提交生图任务...', 15);
+    const taskId = await submitImageTask(apiKey, prompt, size, resolution, refData);
+    updateProgress('任务已提交，等待生成...', 20);
+    const imgUrl = await pollTask(apiKey, taskId, (s, p) => {
+      const pct = Math.min(20 + Math.floor(p * 0.7), 90);
+      updateProgress('生成中... ' + s, pct);
+    });
+    updateProgress('加载图片...', 95);
+    currentImageUrl = imgUrl;
+    currentImageBlob = null;
+    document.getElementById('resultImg').src = imgUrl;
+    document.getElementById('resultImg').onload = () => finishGenerate();
+    document.getElementById('resultImg').onerror = () => finishGenerate();
+    if (costData) {
+      document.getElementById('costValue').textContent =
+        costData.cost != null ? costData.cost + ' 元' : '--';
+      document.getElementById('timeValue').textContent =
+        costData.actual_time != null ? costData.actual_time + 's' : '--';
+    }
+    fetch(imgUrl).then(r => r.blob()).then(b => { currentImageBlob = b; }).catch(() => {});
+  } catch (e) {
+    showError(e.message);
+    finishGenerate();
+  }
+}
+
+function finishGenerate() {
+  updateProgress('✅ 生成完成', 100);
+  showResult();
+  isGenerating = false;
+  ['genBtn', 'regenBtn', 'downloadBtn', 'saveAsBtn'].forEach(id =>
+    document.getElementById(id).disabled = false);
+  document.getElementById('genBtn').textContent = '🎨 生成图片';
+  setTimeout(hideProgress, 1500);
+}
+
+async function regenerate() { hideResult(); await generate(); }
+
+// ── Download ──
+function downloadImage() {
+  if (!currentImageUrl) return;
+  const doDownload = (blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'gemini3_pro_' + Date.now() + '.png';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+  if (currentImageBlob) { doDownload(currentImageBlob); return; }
+  fetch(currentImageUrl).then(r => r.blob()).then(b => { currentImageBlob = b; doDownload(b); })
+    .catch(() => trySaveAs());
+}
+
+// ── Save As (Electron native dialog or Web fallback) ──
+async function saveImageAs() {
+  if (!currentImageUrl) return;
+  try {
+    // Electron path: use IPC
+    if (window.electronAPI?.saveFileDialog) {
+      let blob = currentImageBlob;
+      if (!blob) blob = await fetch(currentImageUrl).then(r => r.blob());
+      currentImageBlob = blob;
+      // Convert blob to data URL for IPC
+      const dataUrl = await blobToDataUrl(blob);
+      const result = await window.electronAPI.saveFileDialog({
+        defaultName: 'gemini3_pro_' + Date.now() + '.png',
+        dataUrl: dataUrl,
+      });
+      if (result.success) {
+        showSuccess('已保存到: ' + result.filePath);
+      }
+      return;
+    }
+
+    // Web fallback: use showSaveFilePicker if available
+    if (window.showSaveFilePicker) {
+      let blob = currentImageBlob;
+      if (!blob) blob = await fetch(currentImageUrl).then(r => r.blob());
+      currentImageBlob = blob;
+      const ext = { 'image/png': '.png', 'image/webp': '.webp' }[blob.type] || '.jpg';
+      const handle = await window.showSaveFilePicker({
+        suggestedName: 'gemini3_pro_' + Date.now() + ext,
+        types: [{ description: '图片', accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] } }],
+      });
+      const w = await handle.createWritable();
+      await w.write(blob); await w.close();
+      return;
+    }
+    // Last resort fallback
+    downloadImage();
+  } catch (e) {
+    if (e.name === 'AbortError' || e.name === 'SecurityError') return;
+    downloadImage();
+  }
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function trySaveAs() {
+  if (confirm('直接下载失败，是否在新标签页打开图片？')) {
+    window.open(currentImageUrl, '_blank');
+  }
+}
+
+// ── Toast / Status ──
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg; el.classList.add('active');
+  console.error('[Gemini-3-Pro]', msg);
+}
+function hideError() { document.getElementById('errorMsg').classList.remove('active'); }
+
+let successTimer = null;
+function showSuccess(msg) {
+  hideError();
+  const el = document.getElementById('errorMsg');
+  el.textContent = '✅ ' + msg;
+  el.style.color = 'var(--green)';
+  el.style.borderColor = 'rgba(52,211,153,0.3)';
+  el.style.background = 'rgba(52,211,153,0.08)';
+  el.classList.add('active');
+  clearTimeout(successTimer);
+  successTimer = setTimeout(() => {
+    el.classList.remove('active');
+    el.style.color = '';
+    el.style.borderColor = '';
+    el.style.background = '';
+  }, 4000);
+}
+
+function showProgress(t, p) {
+  document.getElementById('progressArea').classList.add('active');
+  document.getElementById('progressLabel').textContent = t;
+  document.getElementById('progressPct').textContent = p + '%';
+  document.getElementById('progressFill').style.width = p + '%';
+}
+function updateProgress(t, p) {
+  document.getElementById('progressLabel').textContent = t;
+  document.getElementById('progressPct').textContent = p + '%';
+  document.getElementById('progressFill').style.width = p + '%';
+}
+function hideProgress() { document.getElementById('progressArea').classList.remove('active'); }
+
+function showResult() { document.getElementById('resultArea').classList.add('active'); }
+function hideResult() {
+  document.getElementById('resultArea').classList.remove('active');
+  currentImageUrl = null; currentImageBlob = null; costData = null;
+}
+</script>
+</body>
+</html>
